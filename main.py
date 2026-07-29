@@ -10,7 +10,7 @@ import uuid
 app = FastAPI(title="Backend Examen API", version="1.0.0")
 
 # ==========================================
-# CUMPLIENDO RÚBRICA: Variables de entorno
+# CUMPLIENDO RÚBRICA: Variables
 # ==========================================
 # Estas variables serán inyectadas por AWS ECS (Fargate) en producción
 API_KEY_NAME = "X-API-Key"
