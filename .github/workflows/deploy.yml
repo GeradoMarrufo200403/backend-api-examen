@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION: us-east-1                   # O la región que configures en Terraform
   ECR_REPOSITORY: examen-backend-repo     # Se creará en Terraform
-  ECS_CLUSTER: examen-ecs-cluster         # Se creará en Terraform
+  ECS_CLUSTER: examen-backend-cluster         # Se creará en Terraform
   ECS_SERVICE: backend-service            # Se creará en Terraform
   CONTAINER_NAME: backend-container       # Nombre del contenedor en la Task Definition
 
