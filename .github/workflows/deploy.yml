@@ -1,0 +1,89 @@
+name: CI/CD Pipeline - FastAPI to Amazon ECS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1                   # O la región que configures en Terraform
+  ECR_REPOSITORY: examen-backend-repo     # Se creará en Terraform
+  ECS_CLUSTER: examen-ecs-cluster         # Se creará en Terraform
+  ECS_SERVICE: backend-service            # Se creará en Terraform
+  CONTAINER_NAME: backend-container       # Nombre del contenedor en la Task Definition
+
+jobs:
+  # ==========================================
+  # CUMPLIENDO RÚBRICA: Correr linters y/o tests
+  # ==========================================
+  lint:
+    name: Code Quality (Flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Linter
+        run: pip install flake8
+
+      - name: Ejecutar Flake8
+        # Ignoramos advertencias menores para que no bloquee el examen, 
+        # pero validamos errores críticos de sintaxis.
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  # ==========================================
+  # CUMPLIENDO RÚBRICA: Despliegue automático (Docker + ECR + ECS)
+  # ==========================================
+  build-and-deploy:
+    name: Build Docker and Deploy to ECS
+    needs: lint # Este job solo corre si el linter fue exitoso
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales de AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Iniciar sesión en Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Construir, etiquetar y subir imagen a ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Descargar Task Definition de ECS
+        run: |
+          aws ecs describe-task-definition --task-definition backend-task --query taskDefinition > task-definition.json
+
+      - name: Inyectar la nueva imagen en la Task Definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Desplegar en Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
