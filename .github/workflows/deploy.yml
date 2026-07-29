@@ -15,7 +15,7 @@ env:
 
 jobs:
   # ==========================================
-  # CUMPLIENDO RÚBRICA: Correr linters y/o tests
+  # Correr linters y/o tests
   # ==========================================
   lint:
     name: Code Quality (Flake8)
