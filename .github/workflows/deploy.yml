@@ -3,7 +3,8 @@ name: CI/CD Pipeline - FastAPI to Amazon ECS
 on:
   push:
     branches:
-      - main
+      - master
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1                   # O la región que configures en Terraform
